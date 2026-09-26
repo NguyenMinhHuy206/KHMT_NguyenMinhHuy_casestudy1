@@ -12,7 +12,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: AddEditTransactionScreen(isEditing: false),
+      home: AddEditTransactionScreen(
+        isEditing: false,
+      ),
     );
   }
 }

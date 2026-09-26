@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 class AddEditTransactionScreen extends StatefulWidget {
   final bool isEditing;
 
+  final void Function(Map<String, dynamic>)? onSave;
+
   const AddEditTransactionScreen({
     super.key,
     required this.isEditing,
+    this.onSave,
   });
 
   @override
@@ -31,27 +34,26 @@ class _AddEditTransactionScreenState
     'Lương',
   ];
 
-  // Màu đỏ giống ảnh mẫu
   static const Color primaryRed = Color(0xFFFF5B62);
-
-  // Màu xanh nút Lưu
   static const Color primaryBlue = Color(0xFF2878E8);
 
   @override
   void initState() {
     super.initState();
 
-    _amountController = TextEditingController(
-      text: widget.isEditing ? '100.000' : '',
-    );
+    _amountController = TextEditingController();
+
+    final now = DateTime.now();
+
+    final day = now.day.toString().padLeft(2, '0');
+    final month = now.month.toString().padLeft(2, '0');
+    final year = now.year.toString();
 
     _dateController = TextEditingController(
-      text: '12/04/2025',
+      text: '$day/$month/$year',
     );
 
-    _noteController = TextEditingController(
-      text: widget.isEditing ? 'Ăn trưa' : '',
-    );
+    _noteController = TextEditingController();
   }
 
   @override
@@ -78,7 +80,7 @@ class _AddEditTransactionScreenState
   }
 
   // =========================
-  // INPUT STYLE
+  // INPUT BORDER
   // =========================
 
   OutlineInputBorder _inputBorder() {
@@ -90,6 +92,10 @@ class _AddEditTransactionScreenState
       ),
     );
   }
+
+  // =========================
+  // INPUT DECORATION
+  // =========================
 
   InputDecoration _inputDecoration({
     String? hintText,
@@ -121,6 +127,7 @@ class _AddEditTransactionScreenState
       ),
 
       enabledBorder: _inputBorder(),
+
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(9),
         borderSide: const BorderSide(
@@ -132,7 +139,7 @@ class _AddEditTransactionScreenState
   }
 
   // =========================
-  // TAB CHI TIÊU / THU NHẬP
+  // CHI TIÊU / THU NHẬP
   // =========================
 
   Widget _buildTransactionType() {
@@ -284,6 +291,43 @@ class _AddEditTransactionScreenState
   }
 
   // =========================
+  // LƯU
+  // =========================
+
+  void _saveTransaction() {
+    String amountText = _amountController.text.trim();
+
+    amountText = amountText.replaceAll('.', '');
+    amountText = amountText.replaceAll(',', '');
+
+    final amount = double.tryParse(amountText);
+
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Vui lòng nhập số tiền hợp lệ!',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final expense = <String, dynamic>{
+      'amount': amount,
+      'category': _selectedCategory,
+      'date': _dateController.text,
+      'note': _noteController.text.trim(),
+    };
+
+    // Gửi dữ liệu về màn hình danh sách
+    widget.onSave?.call(expense);
+
+    // Quay về màn hình danh sách
+    Navigator.pop(context);
+  }
+
+  // =========================
   // BUILD
   // =========================
 
@@ -296,7 +340,6 @@ class _AddEditTransactionScreenState
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
-
         toolbarHeight: 52,
 
         leading: IconButton(
@@ -369,11 +412,13 @@ class _AddEditTransactionScreenState
               TextField(
                 controller: _amountController,
                 keyboardType: TextInputType.number,
+
                 style: const TextStyle(
                   fontSize: 12,
                   color: Color(0xFF344256),
                   fontWeight: FontWeight.w500,
                 ),
+
                 decoration: _inputDecoration(
                   hintText: 'Nhập số tiền',
                   suffixText: 'đ',
@@ -383,7 +428,7 @@ class _AddEditTransactionScreenState
               const SizedBox(height: 14),
 
               // =========================
-              // NGÀY GIAO DỊCH
+              // NGÀY
               // =========================
 
               _buildLabel('Ngày giao dịch'),
@@ -393,11 +438,13 @@ class _AddEditTransactionScreenState
               TextField(
                 controller: _dateController,
                 readOnly: true,
+
                 style: const TextStyle(
                   fontSize: 12,
                   color: Color(0xFF344256),
                   fontWeight: FontWeight.w500,
                 ),
+
                 decoration: _inputDecoration(
                   suffixIcon: const Icon(
                     Icons.calendar_month_outlined,
@@ -405,23 +452,25 @@ class _AddEditTransactionScreenState
                     color: Color(0xFF657789),
                   ),
                 ),
+
                 onTap: () async {
-                  DateTime? pickedDate = await showDatePicker(
+                  final pickedDate = await showDatePicker(
                     context: context,
-                    initialDate: DateTime(2025, 4, 12),
+                    initialDate: DateTime.now(),
                     firstDate: DateTime(2020),
                     lastDate: DateTime(2035),
                   );
 
                   if (pickedDate != null) {
-                    final day =
-                    pickedDate.day.toString().padLeft(2, '0');
+                    final day = pickedDate.day
+                        .toString()
+                        .padLeft(2, '0');
 
-                    final month =
-                    pickedDate.month.toString().padLeft(2, '0');
+                    final month = pickedDate.month
+                        .toString()
+                        .padLeft(2, '0');
 
-                    final year =
-                    pickedDate.year.toString();
+                    final year = pickedDate.year.toString();
 
                     setState(() {
                       _dateController.text =
@@ -444,11 +493,13 @@ class _AddEditTransactionScreenState
               TextField(
                 controller: _noteController,
                 maxLines: 3,
+
                 style: const TextStyle(
                   fontSize: 12,
                   color: Color(0xFF344256),
                   fontWeight: FontWeight.w500,
                 ),
+
                 decoration: InputDecoration(
                   hintText: 'Nhập ghi chú (tùy chọn)',
 
@@ -460,12 +511,15 @@ class _AddEditTransactionScreenState
                   filled: true,
                   fillColor: Colors.white,
 
-                  contentPadding: const EdgeInsets.all(12),
+                  contentPadding:
+                  const EdgeInsets.all(12),
 
                   enabledBorder: _inputBorder(),
 
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(9),
+                  focusedBorder:
+                  OutlineInputBorder(
+                    borderRadius:
+                    BorderRadius.circular(9),
                     borderSide: const BorderSide(
                       color: Color(0xFF9DB6D4),
                     ),
@@ -484,16 +538,7 @@ class _AddEditTransactionScreenState
                 height: 40,
 
                 child: ElevatedButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Lưu giao dịch thành công!',
-                        ),
-                      ),
-                    );
-                  },
+                  onPressed: _saveTransaction,
 
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryBlue,
@@ -502,7 +547,8 @@ class _AddEditTransactionScreenState
                     elevation: 0,
 
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius:
+                      BorderRadius.circular(8),
                     ),
 
                     padding: EdgeInsets.zero,

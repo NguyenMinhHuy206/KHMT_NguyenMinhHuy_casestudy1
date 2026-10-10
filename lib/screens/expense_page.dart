@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../database/expense_database.dart';
 import '../models/transaction_model.dart';
+import 'transaction_form_page.dart';
 
 class ExpensePage extends StatefulWidget {
   const ExpensePage({super.key});
@@ -21,6 +22,7 @@ class _ExpensePageState extends State<ExpensePage> {
     loadTransactions();
   }
 
+  // Lấy danh sách giao dịch từ SQLite
   Future<void> loadTransactions() async {
     try {
       final data =
@@ -43,6 +45,7 @@ class _ExpensePageState extends State<ExpensePage> {
     }
   }
 
+  // Hiển thị thông báo
   void showMessage(String message) {
     if (!mounted) return;
 
@@ -51,6 +54,7 @@ class _ExpensePageState extends State<ExpensePage> {
     );
   }
 
+  // Tính tổng thu
   double get totalIncome {
     return transactions
         .where((item) => item.type == 'income')
@@ -60,6 +64,7 @@ class _ExpensePageState extends State<ExpensePage> {
     );
   }
 
+  // Tính tổng chi
   double get totalExpense {
     return transactions
         .where((item) => item.type == 'expense')
@@ -69,6 +74,7 @@ class _ExpensePageState extends State<ExpensePage> {
     );
   }
 
+  // Định dạng tiền Việt Nam
   String formatMoney(double amount) {
     final number = amount.toStringAsFixed(0);
 
@@ -80,39 +86,60 @@ class _ExpensePageState extends State<ExpensePage> {
     return '$formatted đ';
   }
 
+  // Định dạng ngày
+  String formatDate(String value) {
+    final date = DateTime.tryParse(value);
+
+    if (date == null) return value;
+
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+
+    return '$day/$month/${date.year}';
+  }
+
+  // Mở màn hình thêm hoặc sửa giao dịch
   Future<void> openTransactionForm([
     TransactionModel? transaction,
   ]) async {
-    final result = await showDialog<TransactionModel>(
-      context: context,
-      builder: (context) => TransactionFormDialog(
-        transaction: transaction,
+    final result = await Navigator.push<TransactionModel>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TransactionFormPage(
+          transaction: transaction,
+        ),
       ),
     );
 
-    if (result == null) return;
+    if (result == null || !mounted) return;
 
     try {
       if (transaction == null) {
+        // Thêm giao dịch vào SQLite
         await ExpenseDatabase.instance
             .insertTransaction(result);
       } else {
+        // Cập nhật giao dịch trong SQLite
         await ExpenseDatabase.instance
             .updateTransaction(result);
       }
 
+      // Tải lại dữ liệu sau khi lưu
       await loadTransactions();
+
+      if (!mounted) return;
 
       showMessage(
         transaction == null
             ? 'Thêm giao dịch thành công'
-            : 'Cập nhật thành công',
+            : 'Cập nhật giao dịch thành công',
       );
     } catch (e) {
       showMessage('Lỗi lưu giao dịch: $e');
     }
   }
 
+  // Xóa giao dịch
   Future<void> deleteTransaction(
       TransactionModel transaction,
       ) async {
@@ -140,7 +167,9 @@ class _ExpensePageState extends State<ExpensePage> {
       ),
     );
 
-    if (confirm != true || transaction.id == null) {
+    if (confirm != true ||
+        transaction.id == null ||
+        !mounted) {
       return;
     }
 
@@ -149,12 +178,16 @@ class _ExpensePageState extends State<ExpensePage> {
           .deleteTransaction(transaction.id!);
 
       await loadTransactions();
+
+      if (!mounted) return;
+
       showMessage('Đã xóa giao dịch');
     } catch (e) {
       showMessage('Lỗi xóa giao dịch: $e');
     }
   }
 
+  // Card tổng thu và tổng chi
   Widget buildSummaryCard(
       String title,
       double amount,
@@ -190,6 +223,70 @@ class _ExpensePageState extends State<ExpensePage> {
     );
   }
 
+  // Hiển thị từng giao dịch
+  Widget buildTransactionItem(
+      TransactionModel item,
+      ) {
+    final isIncome = item.type == 'income';
+
+    return Card(
+      margin: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 5,
+      ),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: isIncome
+              ? Colors.green.shade100
+              : Colors.red.shade100,
+          child: Icon(
+            isIncome
+                ? Icons.arrow_downward
+                : Icons.arrow_upward,
+            color: isIncome
+                ? Colors.green
+                : Colors.red,
+          ),
+        ),
+        title: Text(
+          item.title,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Text(
+          '${item.category} - ${formatDate(item.date)}\n'
+              '${isIncome ? "Thu" : "Chi"}: '
+              '${formatMoney(item.amount)}',
+        ),
+        isThreeLine: true,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(
+                Icons.edit,
+                color: Colors.blue,
+              ),
+              onPressed: () {
+                openTransactionForm(item);
+              },
+            ),
+            IconButton(
+              icon: const Icon(
+                Icons.delete,
+                color: Colors.red,
+              ),
+              onPressed: () {
+                deleteTransaction(item);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final balance = totalIncome - totalExpense;
@@ -204,7 +301,7 @@ class _ExpensePageState extends State<ExpensePage> {
         children: [
           const SizedBox(height: 16),
 
-          // Hiển thị tổng thu và tổng chi
+          // Tổng thu và tổng chi
           Row(
             children: [
               buildSummaryCard(
@@ -220,10 +317,14 @@ class _ExpensePageState extends State<ExpensePage> {
             ],
           ),
 
-          // Hiển thị số dư
+          // Số dư hiện tại
           Card(
             margin: const EdgeInsets.all(12),
             child: ListTile(
+              leading: const Icon(
+                Icons.account_balance_wallet,
+                color: Colors.blue,
+              ),
               title: const Text('Số dư hiện tại'),
               subtitle: Text(
                 formatMoney(balance),
@@ -234,10 +335,6 @@ class _ExpensePageState extends State<ExpensePage> {
                       ? Colors.green
                       : Colors.red,
                 ),
-              ),
-              leading: const Icon(
-                Icons.account_balance_wallet,
-                color: Colors.blue,
               ),
             ),
           ),
@@ -256,7 +353,7 @@ class _ExpensePageState extends State<ExpensePage> {
             ),
           ),
 
-          // Danh sách lưu trong SQLite
+          // Danh sách giao dịch từ SQLite
           Expanded(
             child: isLoading
                 ? const Center(
@@ -270,244 +367,28 @@ class _ExpensePageState extends State<ExpensePage> {
                 textAlign: TextAlign.center,
               ),
             )
-                : ListView.builder(
-              itemCount: transactions.length,
-              itemBuilder: (context, index) {
-                final item = transactions[index];
-                final isIncome =
-                    item.type == 'income';
-
-                return Card(
-                  margin:
-                  const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 5,
-                  ),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: isIncome
-                          ? Colors.green.shade100
-                          : Colors.red.shade100,
-                      child: Icon(
-                        isIncome
-                            ? Icons.arrow_downward
-                            : Icons.arrow_upward,
-                        color: isIncome
-                            ? Colors.green
-                            : Colors.red,
-                      ),
-                    ),
-                    title: Text(item.title),
-                    subtitle: Text(
-                      '${item.date.substring(0, 10)}\n'
-                          '${isIncome ? "Thu" : "Chi"}: '
-                          '${formatMoney(item.amount)}',
-                    ),
-                    isThreeLine: true,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(
-                            Icons.edit,
-                            color: Colors.blue,
-                          ),
-                          onPressed: () {
-                            openTransactionForm(item);
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.delete,
-                            color: Colors.red,
-                          ),
-                          onPressed: () {
-                            deleteTransaction(item);
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+                : RefreshIndicator(
+              onRefresh: loadTransactions,
+              child: ListView.builder(
+                itemCount: transactions.length,
+                itemBuilder: (context, index) {
+                  return buildTransactionItem(
+                    transactions[index],
+                  );
+                },
+              ),
             ),
           ),
         ],
       ),
+
+      // Nút thêm giao dịch
       floatingActionButton: FloatingActionButton(
         onPressed: () => openTransactionForm(),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         child: const Icon(Icons.add),
       ),
-    );
-  }
-}
-
-// Form thêm / sửa giao dịch
-class TransactionFormDialog extends StatefulWidget {
-  final TransactionModel? transaction;
-
-  const TransactionFormDialog({
-    super.key,
-    this.transaction,
-  });
-
-  @override
-  State<TransactionFormDialog> createState() =>
-      _TransactionFormDialogState();
-}
-
-class _TransactionFormDialogState
-    extends State<TransactionFormDialog> {
-  final formKey = GlobalKey<FormState>();
-
-  late final TextEditingController titleController;
-  late final TextEditingController amountController;
-
-  String type = 'expense';
-
-  @override
-  void initState() {
-    super.initState();
-
-    final transaction = widget.transaction;
-
-    titleController = TextEditingController(
-      text: transaction?.title ?? '',
-    );
-
-    amountController = TextEditingController(
-      text: transaction == null
-          ? ''
-          : transaction.amount.toStringAsFixed(0),
-    );
-
-    type = transaction?.type ?? 'expense';
-  }
-
-  @override
-  void dispose() {
-    titleController.dispose();
-    amountController.dispose();
-    super.dispose();
-  }
-
-  void saveTransaction() {
-    if (!formKey.currentState!.validate()) {
-      return;
-    }
-
-    final amount = double.parse(
-      amountController.text.trim().replaceAll(',', '.'),
-    );
-
-    final transaction = TransactionModel(
-      id: widget.transaction?.id,
-      title: titleController.text.trim(),
-      amount: amount,
-      type: type,
-      date: widget.transaction?.date ??
-          DateTime.now().toIso8601String(),
-    );
-
-    Navigator.pop(context, transaction);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isEditing = widget.transaction != null;
-
-    return AlertDialog(
-      title: Text(
-        isEditing ? 'Sửa giao dịch' : 'Thêm giao dịch',
-      ),
-      content: SingleChildScrollView(
-        child: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Tên giao dịch',
-                  hintText: 'Ví dụ: Ăn sáng',
-                ),
-                validator: (value) {
-                  if (value == null ||
-                      value.trim().isEmpty) {
-                    return 'Vui lòng nhập tên';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: amountController,
-                keyboardType:
-                const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(
-                  labelText: 'Số tiền (VNĐ)',
-                  hintText: 'Ví dụ: 30000',
-                ),
-                validator: (value) {
-                  final amount = double.tryParse(
-                    (value ?? '').trim().replaceAll(
-                      ',',
-                      '.',
-                    ),
-                  );
-
-                  if (amount == null ||
-                      !amount.isFinite ||
-                      amount <= 0) {
-                    return 'Nhập số tiền hợp lệ';
-                  }
-
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: type,
-                decoration: const InputDecoration(
-                  labelText: 'Loại giao dịch',
-                ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'income',
-                    child: Text('Thu nhập'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'expense',
-                    child: Text('Chi tiêu'),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      type = value;
-                    });
-                  }
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Hủy'),
-        ),
-        ElevatedButton(
-          onPressed: saveTransaction,
-          child: Text(isEditing ? 'Cập nhật' : 'Lưu'),
-        ),
-      ],
     );
   }
 }

@@ -1,7 +1,8 @@
 
 import 'package:flutter/material.dart';
 import 'screens/expense_page.dart';
-
+import 'package:flutter/material.dart';
+import 'screens/home_page.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
@@ -79,8 +80,7 @@ class WelcomeScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                        const ExpensePage(),
+                        builder: (context) => const HomePage(),
                       ),
                     );
                   },

@@ -12,7 +12,6 @@ class ExpenseDatabase {
 
   static Database? _database;
 
-  // Kết nối database
   Future<Database> get database async {
     if (_database != null) {
       return _database!;
@@ -22,7 +21,6 @@ class ExpenseDatabase {
     return _database!;
   }
 
-  // Tạo database
   Future<Database> _initDatabase() async {
     final dbPath = await getDatabasesPath();
 
@@ -31,9 +29,11 @@ class ExpenseDatabase {
       'expense_manager.db',
     );
 
-    return await openDatabase(
+    return openDatabase(
       path,
-      version: 1,
+      version: 2,
+
+      // Tạo database mới
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE transactions (
@@ -41,26 +41,45 @@ class ExpenseDatabase {
             title TEXT NOT NULL,
             amount REAL NOT NULL,
             type TEXT NOT NULL,
-            date TEXT NOT NULL
+            date TEXT NOT NULL,
+            category TEXT NOT NULL DEFAULT 'Khác',
+            note TEXT NOT NULL DEFAULT ''
           )
         ''');
+      },
+
+      // Nâng cấp database cũ
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute(
+            "ALTER TABLE transactions "
+                "ADD COLUMN category TEXT NOT NULL "
+                "DEFAULT 'Khác'",
+          );
+
+          await db.execute(
+            "ALTER TABLE transactions "
+                "ADD COLUMN note TEXT NOT NULL "
+                "DEFAULT ''",
+          );
+        }
       },
     );
   }
 
-  // CREATE - Thêm giao dịch
+  // Thêm giao dịch
   Future<int> insertTransaction(
       TransactionModel transaction,
       ) async {
     final db = await database;
 
-    return await db.insert(
+    return db.insert(
       'transactions',
       transaction.toMap(),
     );
   }
 
-  // READ - Lấy danh sách giao dịch
+  // Lấy danh sách giao dịch
   Future<List<TransactionModel>> getTransactions() async {
     final db = await database;
 
@@ -74,13 +93,13 @@ class ExpenseDatabase {
         .toList();
   }
 
-  // UPDATE - Sửa giao dịch
+  // Sửa giao dịch
   Future<int> updateTransaction(
       TransactionModel transaction,
       ) async {
     final db = await database;
 
-    return await db.update(
+    return db.update(
       'transactions',
       transaction.toMap(),
       where: 'id = ?',
@@ -88,11 +107,11 @@ class ExpenseDatabase {
     );
   }
 
-  // DELETE - Xóa giao dịch
+  // Xóa giao dịch
   Future<int> deleteTransaction(int id) async {
     final db = await database;
 
-    return await db.delete(
+    return db.delete(
       'transactions',
       where: 'id = ?',
       whereArgs: [id],

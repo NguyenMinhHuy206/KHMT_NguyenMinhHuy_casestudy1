@@ -5,6 +5,8 @@ class TransactionModel {
   final double amount;
   final String type;
   final String date;
+  final String category;
+  final String note;
 
   TransactionModel({
     this.id,
@@ -12,6 +14,8 @@ class TransactionModel {
     required this.amount,
     required this.type,
     required this.date,
+    this.category = 'Khác',
+    this.note = '',
   });
 
   Map<String, dynamic> toMap() {
@@ -21,6 +25,8 @@ class TransactionModel {
       'amount': amount,
       'type': type,
       'date': date,
+      'category': category,
+      'note': note,
     };
   }
 
@@ -33,6 +39,8 @@ class TransactionModel {
       amount: (map['amount'] as num).toDouble(),
       type: map['type'] as String,
       date: map['date'] as String,
+      category: (map['category'] as String?) ?? 'Khác',
+      note: (map['note'] as String?) ?? '',
     );
   }
 }

@@ -1,29 +1,39 @@
-
+﻿
 import 'package:flutter/material.dart';
 
 import '../database/expense_database.dart';
 import '../models/transaction_model.dart';
-import 'transaction_form_page.dart';
+import 'ui_helpers.dart';
 
 class ExpensePage extends StatefulWidget {
-  const ExpensePage({super.key});
+  final VoidCallback? onViewAll;
+
+  const ExpensePage({
+    super.key,
+    this.onViewAll,
+  });
 
   @override
   State<ExpensePage> createState() => _ExpensePageState();
 }
 
 class _ExpensePageState extends State<ExpensePage> {
-  List<TransactionModel> transactions = [];
-  bool isLoading = true;
+  static const Color mainBlue = Color(0xFF1769EB);
+  static const Color background = Color(0xFFF6F8FD);
+  static const Color darkText = Color(0xFF172033);
+
+  List<TransactionModel> items = [];
+  bool loading = true;
+  bool showBalance = true;
 
   @override
   void initState() {
     super.initState();
-    loadTransactions();
+    refresh();
   }
 
-  // Lấy danh sách giao dịch từ SQLite
-  Future<void> loadTransactions() async {
+  // ĐỌC DỮ LIỆU TỪ SQLITE
+  Future<void> refresh() async {
     try {
       final data =
       await ExpenseDatabase.instance.getTransactions();
@@ -31,32 +41,23 @@ class _ExpensePageState extends State<ExpensePage> {
       if (!mounted) return;
 
       setState(() {
-        transactions = data;
-        isLoading = false;
+        items = data;
+        loading = false;
       });
     } catch (e) {
       if (!mounted) return;
 
       setState(() {
-        isLoading = false;
+        loading = false;
       });
 
-      showMessage('Lỗi tải dữ liệu: $e');
+      snack(context, 'Lỗi SQLite: $e');
     }
   }
 
-  // Hiển thị thông báo
-  void showMessage(String message) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  }
-
-  // Tính tổng thu
-  double get totalIncome {
-    return transactions
+  // TỔNG THU NHẬP
+  double get income {
+    return items
         .where((item) => item.type == 'income')
         .fold<double>(
       0,
@@ -64,9 +65,9 @@ class _ExpensePageState extends State<ExpensePage> {
     );
   }
 
-  // Tính tổng chi
-  double get totalExpense {
-    return transactions
+  // TỔNG CHI TIÊU
+  double get expense {
+    return items
         .where((item) => item.type == 'expense')
         .fold<double>(
       0,
@@ -74,212 +75,473 @@ class _ExpensePageState extends State<ExpensePage> {
     );
   }
 
-  // Định dạng tiền Việt Nam
-  String formatMoney(double amount) {
-    final number = amount.toStringAsFixed(0);
-
-    final formatted = number.replaceAllMapped(
-      RegExp(r'\B(?=(\d{3})+(?!\d))'),
-          (match) => '.',
-    );
-
-    return '$formatted đ';
-  }
-
-  // Định dạng ngày
+  // ĐỊNH DẠNG NGÀY
   String formatDate(String value) {
-    final date = DateTime.tryParse(value);
-
-    if (date == null) return value;
-
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
-
-    return '$day/$month/${date.year}';
-  }
-
-  // Mở màn hình thêm hoặc sửa giao dịch
-  Future<void> openTransactionForm([
-    TransactionModel? transaction,
-  ]) async {
-    final result = await Navigator.push<TransactionModel>(
-      context,
-      MaterialPageRoute(
-        builder: (context) => TransactionFormPage(
-          transaction: transaction,
-        ),
-      ),
-    );
-
-    if (result == null || !mounted) return;
-
     try {
-      if (transaction == null) {
-        // Thêm giao dịch vào SQLite
-        await ExpenseDatabase.instance
-            .insertTransaction(result);
-      } else {
-        // Cập nhật giao dịch trong SQLite
-        await ExpenseDatabase.instance
-            .updateTransaction(result);
-      }
+      final date = DateTime.parse(value);
 
-      // Tải lại dữ liệu sau khi lưu
-      await loadTransactions();
+      final day = date.day.toString().padLeft(2, '0');
+      final month = date.month.toString().padLeft(2, '0');
 
-      if (!mounted) return;
-
-      showMessage(
-        transaction == null
-            ? 'Thêm giao dịch thành công'
-            : 'Cập nhật giao dịch thành công',
-      );
-    } catch (e) {
-      showMessage('Lỗi lưu giao dịch: $e');
+      return '$day/$month/${date.year}';
+    } catch (_) {
+      return value;
     }
   }
 
-  // Xóa giao dịch
-  Future<void> deleteTransaction(
-      TransactionModel transaction,
+  // ICON THEO DANH MỤC
+  IconData categoryIcon(TransactionModel item) {
+    final text =
+    '${item.category} ${item.title}'.toLowerCase();
+
+    if (text.contains('ăn') ||
+        text.contains('uống') ||
+        text.contains('cơm')) {
+      return Icons.restaurant;
+    }
+
+    if (text.contains('xe') ||
+        text.contains('xăng') ||
+        text.contains('di chuyển')) {
+      return Icons.directions_car;
+    }
+
+    if (text.contains('lương') ||
+        text.contains('thu nhập')) {
+      return Icons.attach_money;
+    }
+
+    if (text.contains('mua') ||
+        text.contains('sắm')) {
+      return Icons.shopping_cart;
+    }
+
+    if (text.contains('học') ||
+        text.contains('giáo dục')) {
+      return Icons.school;
+    }
+
+    if (text.contains('giải trí')) {
+      return Icons.sports_esports;
+    }
+
+    if (item.type == 'income') {
+      return Icons.attach_money;
+    }
+
+    return Icons.receipt_long;
+  }
+
+  // MÀU SẮC THEO DANH MỤC
+  Color categoryColor(TransactionModel item) {
+    final text =
+    '${item.category} ${item.title}'.toLowerCase();
+
+    if (text.contains('ăn') ||
+        text.contains('uống') ||
+        text.contains('cơm')) {
+      return const Color(0xFFFF6B24);
+    }
+
+    if (text.contains('xe') ||
+        text.contains('xăng') ||
+        text.contains('di chuyển')) {
+      return const Color(0xFF2196F3);
+    }
+
+    if (text.contains('mua') ||
+        text.contains('sắm')) {
+      return const Color(0xFFA83CF5);
+    }
+
+    if (text.contains('học') ||
+        text.contains('giáo dục')) {
+      return const Color(0xFF009C96);
+    }
+
+    if (item.type == 'income') {
+      return const Color(0xFF26A53C);
+    }
+
+    return mainBlue;
+  }
+
+  // THÊM GIAO DỊCH
+  Future<void> addTransaction() async {
+    final added = await editTransaction(context);
+
+    if (!mounted) return;
+
+    if (added) {
+      await refresh();
+    }
+  }
+
+  // SỬA HOẶC XÓA GIAO DỊCH
+  Future<void> transactionActions(
+      TransactionModel item,
       ) async {
-    final confirm = await showDialog<bool>(
+    final action = await showModalBottomSheet<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Xác nhận xóa'),
-        content: Text(
-          'Bạn muốn xóa "${transaction.title}"?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext, false);
-            },
-            child: const Text('Hủy'),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text(
+                  item.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                subtitle: Text(item.category),
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.edit,
+                  color: mainBlue,
+                ),
+                title: const Text('Sửa giao dịch'),
+                onTap: () {
+                  Navigator.pop(sheetContext, 'edit');
+                },
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.delete_outline,
+                  color: Colors.red,
+                ),
+                title: const Text('Xóa giao dịch'),
+                onTap: () {
+                  Navigator.pop(sheetContext, 'delete');
+                },
+              ),
+            ],
           ),
-          TextButton(
+        );
+      },
+    );
+
+    if (!mounted) return;
+
+    if (action == 'edit') {
+      final updated = await editTransaction(
+        context,
+        existing: item,
+      );
+
+      if (!mounted) return;
+
+      if (updated) {
+        await refresh();
+      }
+    }
+
+    if (action == 'delete') {
+      final deleted = await removeTransaction(
+        context,
+        item,
+      );
+
+      if (!mounted) return;
+
+      if (deleted) {
+        await refresh();
+      }
+    }
+  }
+
+  // THANH TIÊU ĐỀ TRẮNG
+  Widget buildHeader() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 7,
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.menu),
+            color: darkText,
             onPressed: () {
-              Navigator.pop(dialogContext, true);
+              showModalBottomSheet<void>(
+                context: context,
+                builder: (sheetContext) {
+                  return SafeArea(
+                    child: ListTile(
+                      leading: const Icon(
+                        Icons.receipt_long,
+                        color: mainBlue,
+                      ),
+                      title: const Text('Tất cả giao dịch'),
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        widget.onViewAll?.call();
+                      },
+                    ),
+                  );
+                },
+              );
             },
-            child: const Text('Xóa'),
+          ),
+          const SizedBox(width: 7),
+          const Expanded(
+            child: Text(
+              'Quản lý thu chi',
+              style: TextStyle(
+                color: darkText,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(
+              Icons.notifications_none,
+              size: 26,
+            ),
+            onPressed: () {
+              snack(context, 'Chưa có thông báo mới');
+            },
           ),
         ],
       ),
     );
-
-    if (confirm != true ||
-        transaction.id == null ||
-        !mounted) {
-      return;
-    }
-
-    try {
-      await ExpenseDatabase.instance
-          .deleteTransaction(transaction.id!);
-
-      await loadTransactions();
-
-      if (!mounted) return;
-
-      showMessage('Đã xóa giao dịch');
-    } catch (e) {
-      showMessage('Lỗi xóa giao dịch: $e');
-    }
   }
 
-  // Card tổng thu và tổng chi
-  Widget buildSummaryCard(
-      String title,
-      double amount,
-      Color color,
-      ) {
-    return Expanded(
-      child: Card(
-        color: color.withValues(alpha: 0.1),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            children: [
-              Text(
-                title,
-                style: const TextStyle(fontSize: 13),
+  // THẺ SỐ DƯ MÀU XANH
+  Widget buildBalanceCard() {
+    final balance = income - expense;
+
+    return Container(
+      height: 146,
+      margin: const EdgeInsets.fromLTRB(
+        14, 14, 14, 11,
+      ),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF418AFF),
+            Color(0xFF0753D8),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: mainBlue.withValues(alpha: 0.16),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -30,
+            top: -48,
+            child: Container(
+              width: 150,
+              height: 150,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.07),
               ),
-              const SizedBox(height: 8),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  formatMoney(amount),
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          Positioned(
+            right: 6,
+            bottom: 4,
+            child: SizedBox(
+              width: 120,
+              height: 112,
+              child: Stack(
+                children: [
+                  Positioned(
+                    right: 23,
+                    top: 4,
+                    child: Transform.rotate(
+                      angle: -0.18,
+                      child: const Icon(
+                        Icons.payments,
+                        color: Color(0xFF79DC91),
+                        size: 64,
+                      ),
+                    ),
+                  ),
+                  const Positioned(
+                    right: 7,
+                    bottom: 10,
+                    child: Icon(
+                      Icons.account_balance_wallet,
+                      color: Color(0xFF123B9F),
+                      size: 87,
+                    ),
+                  ),
+                  const Positioned(
+                    right: 13,
+                    bottom: 3,
+                    child: Icon(
+                      Icons.monetization_on,
+                      color: Color(0xFFFFCB38),
+                      size: 36,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              20, 25, 110, 22,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Flexible(
+                      child: Text(
+                        'SỐ DƯ HIỆN TẠI',
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 3),
+                    InkWell(
+                      onTap: () {
+                        setState(() {
+                          showBalance = !showBalance;
+                        });
+                      },
+                      child: Icon(
+                        showBalance
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        color: Colors.white,
+                        size: 17,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 13),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    showBalance ? money(balance) : '••••••••',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+
+          Positioned(
+            bottom: 9,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 13,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                ),
+                const SizedBox(width: 5),
+                ...List.generate(
+                  3,
+                      (index) => Container(
+                    width: 5,
+                    height: 5,
+                    margin: const EdgeInsets.only(right: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.4),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  // Hiển thị từng giao dịch
-  Widget buildTransactionItem(
-      TransactionModel item,
-      ) {
-    final isIncome = item.type == 'income';
-
-    return Card(
-      margin: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 5,
-      ),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: isIncome
-              ? Colors.green.shade100
-              : Colors.red.shade100,
-          child: Icon(
-            isIncome
-                ? Icons.arrow_downward
-                : Icons.arrow_upward,
-            color: isIncome
-                ? Colors.green
-                : Colors.red,
-          ),
+  // Ô THU NHẬP VÀ CHI TIÊU
+  Widget summaryCard({
+    required String title,
+    required double amount,
+    required Color color,
+    required Color backgroundColor,
+    required IconData icon,
+  }) {
+    return Expanded(
+      child: Container(
+        height: 85,
+        padding: const EdgeInsets.all(11),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(13),
         ),
-        title: Text(
-          item.title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        subtitle: Text(
-          '${item.category} - ${formatDate(item.date)}\n'
-              '${isIncome ? "Thu" : "Chi"}: '
-              '${formatMoney(item.amount)}',
-        ),
-        isThreeLine: true,
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
+        child: Row(
           children: [
-            IconButton(
-              icon: const Icon(
-                Icons.edit,
-                color: Colors.blue,
+            CircleAvatar(
+              radius: 17,
+              backgroundColor: color,
+              child: Icon(
+                icon,
+                color: Colors.white,
+                size: 21,
               ),
-              onPressed: () {
-                openTransactionForm(item);
-              },
             ),
-            IconButton(
-              icon: const Icon(
-                Icons.delete,
-                color: Colors.red,
+            const SizedBox(width: 7),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    style: const TextStyle(
+                      color: Color(0xFF596270),
+                      fontSize: 10,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      money(amount),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              onPressed: () {
-                deleteTransaction(item);
-              },
             ),
           ],
         ),
@@ -287,107 +549,248 @@ class _ExpensePageState extends State<ExpensePage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final balance = totalIncome - totalExpense;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Quản lý thu chi'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
+  Widget buildSummary() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 14,
       ),
-      body: Column(
+      child: Row(
         children: [
-          const SizedBox(height: 16),
-
-          // Tổng thu và tổng chi
-          Row(
-            children: [
-              buildSummaryCard(
-                'Tổng thu',
-                totalIncome,
-                Colors.green,
-              ),
-              buildSummaryCard(
-                'Tổng chi',
-                totalExpense,
-                Colors.red,
-              ),
-            ],
+          summaryCard(
+            title: 'TỔNG THU NHẬP',
+            amount: income,
+            color: const Color(0xFF28A745),
+            backgroundColor: const Color(0xFFE7F6EA),
+            icon: Icons.arrow_downward,
           ),
+          const SizedBox(width: 9),
+          summaryCard(
+            title: 'TỔNG CHI TIÊU',
+            amount: expense,
+            color: const Color(0xFFEF4F5E),
+            backgroundColor: const Color(0xFFFFE9EC),
+            icon: Icons.arrow_upward,
+          ),
+        ],
+      ),
+    );
+  }
 
-          // Số dư hiện tại
-          Card(
-            margin: const EdgeInsets.all(12),
-            child: ListTile(
-              leading: const Icon(
-                Icons.account_balance_wallet,
-                color: Colors.blue,
-              ),
-              title: const Text('Số dư hiện tại'),
-              subtitle: Text(
-                formatMoney(balance),
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: balance >= 0
-                      ? Colors.green
-                      : Colors.red,
-                ),
+  // TIÊU ĐỀ GIAO DỊCH GẦN ĐÂY
+  Widget buildRecentHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        14, 19, 14, 7,
+      ),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Giao dịch gần đây',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: darkText,
               ),
             ),
           ),
-
-          const Padding(
-            padding: EdgeInsets.all(12),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Danh sách giao dịch',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+          TextButton(
+            onPressed: widget.onViewAll,
+            style: TextButton.styleFrom(
+              foregroundColor: mainBlue,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 4,
               ),
             ),
-          ),
-
-          // Danh sách giao dịch từ SQLite
-          Expanded(
-            child: isLoading
-                ? const Center(
-              child: CircularProgressIndicator(),
-            )
-                : transactions.isEmpty
-                ? const Center(
-              child: Text(
-                'Chưa có giao dịch nào.\n'
-                    'Nhấn + để thêm giao dịch.',
-                textAlign: TextAlign.center,
-              ),
-            )
-                : RefreshIndicator(
-              onRefresh: loadTransactions,
-              child: ListView.builder(
-                itemCount: transactions.length,
-                itemBuilder: (context, index) {
-                  return buildTransactionItem(
-                    transactions[index],
-                  );
-                },
+            child: const Text(
+              'Xem tất cả',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
         ],
       ),
+    );
+  }
 
-      // Nút thêm giao dịch
+  // MỘT DÒNG GIAO DỊCH
+  Widget buildTransactionRow(TransactionModel item) {
+    final isIncome = item.type == 'income';
+    final color = categoryColor(item);
+    final amountColor = isIncome
+        ? const Color(0xFF20A444)
+        : const Color(0xFFEF3349);
+
+    return InkWell(
+      onTap: () => transactionActions(item),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 11,
+          vertical: 11,
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 19,
+              backgroundColor: color,
+              child: Icon(
+                categoryIcon(item),
+                color: Colors.white,
+                size: 21,
+              ),
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: darkText,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    item.category,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF88909E),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 5),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '${isIncome ? '+' : '-'}${money(item.amount.abs())}',
+                  style: TextStyle(
+                    color: amountColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  formatDate(item.date),
+                  style: const TextStyle(
+                    color: Color(0xFF9DA5B3),
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // DANH SÁCH GIAO DỊCH
+  Widget buildRecentTransactions() {
+    if (loading) {
+      return const Padding(
+        padding: EdgeInsets.all(30),
+        child: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    final recent = items.take(5).toList();
+
+    if (recent.isEmpty) {
+      return Container(
+        margin: const EdgeInsets.symmetric(
+          horizontal: 14,
+        ),
+        padding: const EdgeInsets.all(30),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(13),
+        ),
+        child: const Center(
+          child: Text('Chưa có giao dịch nào'),
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: 14,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(
+          color: const Color(0xFFEAEFF6),
+        ),
+      ),
+      child: Column(
+        children: [
+          for (int i = 0; i < recent.length; i++) ...[
+            buildTransactionRow(recent[i]),
+            if (i < recent.length - 1)
+              const Divider(
+                height: 1,
+                indent: 10,
+                endIndent: 10,
+                color: Color(0xFFECEFF4),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            buildHeader(),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: refresh,
+                child: ListView(
+                  padding: const EdgeInsets.only(
+                    bottom: 95,
+                  ),
+                  children: [
+                    buildBalanceCard(),
+                    buildSummary(),
+                    buildRecentHeader(),
+                    buildRecentTransactions(),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => openTransactionForm(),
-        backgroundColor: Colors.blue,
+        onPressed: addTransaction,
+        backgroundColor: mainBlue,
         foregroundColor: Colors.white,
-        child: const Icon(Icons.add),
+        elevation: 5,
+        shape: const CircleBorder(),
+        child: const Icon(
+          Icons.add,
+          size: 30,
+        ),
       ),
     );
   }

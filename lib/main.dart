@@ -1,114 +1,46 @@
-
-import 'package:flutter/material.dart';
-import 'screens/expense_page.dart';
 import 'package:flutter/material.dart';
 import 'screens/home_page.dart';
+import 'screens/ui_helpers.dart';
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
+  runApp(const ExpenseManagerApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class ExpenseManagerApp extends StatelessWidget {
+  const ExpenseManagerApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: WelcomeScreen(),
-    );
-  }
+  Widget build(BuildContext context) => MaterialApp(
+    title: 'Expense Manager',
+    debugShowCheckedModeBanner: false,
+    theme: ThemeData(useMaterial3: true, colorScheme: ColorScheme.fromSeed(seedColor: blue), scaffoldBackgroundColor: canvasColor),
+    home: const WelcomeScreen(),
+  );
 }
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 24.0,
-          ),
-          child: Column(
-            children: [
-              const Spacer(),
-
-              // Icon ví tiền
-              Icon(
-                Icons.account_balance_wallet,
-                size: 120,
-                color: Colors.blue.shade600,
-              ),
-
-              const SizedBox(height: 32),
-
-              // Tiêu đề
-              const Text(
-                'Expense Manager',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // Mô tả
-              const Text(
-                'Quản lý chi tiêu cá nhân\n'
-                    'đơn giản và hiệu quả',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                  height: 1.4,
-                ),
-              ),
-
-              const Spacer(),
-
-              // Nút Bắt đầu
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const HomePage(),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                    const Color(0xFF1565C0),
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                      BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    'Bắt đầu',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: Colors.white,
+    body: SafeArea(child: Padding(padding: const EdgeInsets.all(24), child: Column(children: [
+      const Spacer(),
+      Container(padding: const EdgeInsets.all(22), decoration: BoxDecoration(color: const Color(0xFFE9F2FF), borderRadius: BorderRadius.circular(25)),
+        child: const Icon(Icons.account_balance_wallet_rounded, color: blue, size: 84)),
+      const SizedBox(height: 28),
+      const Text('Expense Manager', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: navy)),
+      const SizedBox(height: 12),
+      const Text('Quản lý chi tiêu cá nhân\nđơn giản và hiệu quả', textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 15, color: Colors.grey, height: 1.4)),
+      const Spacer(),
+      SizedBox(width: double.infinity, height: 52, child: FilledButton(
+        style: FilledButton.styleFrom(backgroundColor: blue, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HomePage())),
+        child: const Text('Bắt đầu', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+      )),
+      const SizedBox(height: 14),
+    ]))),
+  );
 }

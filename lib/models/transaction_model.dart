@@ -1,14 +1,13 @@
-
 class TransactionModel {
   final int? id;
   final String title;
   final double amount;
-  final String type;
-  final String date;
+  final String type; // income | expense
+  final String date; // ISO-8601
   final String category;
   final String note;
 
-  TransactionModel({
+  const TransactionModel({
     this.id,
     required this.title,
     required this.amount,
@@ -18,29 +17,23 @@ class TransactionModel {
     this.note = '',
   });
 
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'title': title,
-      'amount': amount,
-      'type': type,
-      'date': date,
-      'category': category,
-      'note': note,
-    };
-  }
+  Map<String, Object?> toMap() => {
+    'id': id,
+    'title': title,
+    'amount': amount,
+    'type': type,
+    'date': date,
+    'category': category,
+    'note': note,
+  };
 
-  factory TransactionModel.fromMap(
-      Map<String, dynamic> map,
-      ) {
-    return TransactionModel(
-      id: map['id'] as int?,
-      title: map['title'] as String,
-      amount: (map['amount'] as num).toDouble(),
-      type: map['type'] as String,
-      date: map['date'] as String,
-      category: (map['category'] as String?) ?? 'Khác',
-      note: (map['note'] as String?) ?? '',
-    );
-  }
+  factory TransactionModel.fromMap(Map<String, Object?> m) => TransactionModel(
+    id: m['id'] as int?,
+    title: m['title'] as String,
+    amount: (m['amount'] as num).toDouble(),
+    type: m['type'] as String,
+    date: m['date'] as String,
+    category: (m['category'] as String?) ?? 'Khác',
+    note: (m['note'] as String?) ?? '',
+  );
 }

@@ -1,4 +1,3 @@
-﻿
 import 'package:flutter/material.dart';
 
 import '../database/expense_database.dart';
@@ -8,10 +7,7 @@ import 'ui_helpers.dart';
 class ExpensePage extends StatefulWidget {
   final VoidCallback? onViewAll;
 
-  const ExpensePage({
-    super.key,
-    this.onViewAll,
-  });
+  const ExpensePage({super.key, this.onViewAll});
 
   @override
   State<ExpensePage> createState() => _ExpensePageState();
@@ -35,8 +31,7 @@ class _ExpensePageState extends State<ExpensePage> {
   // ĐỌC DỮ LIỆU TỪ SQLITE
   Future<void> refresh() async {
     try {
-      final data =
-      await ExpenseDatabase.instance.getTransactions();
+      final data = await ExpenseDatabase.instance.getTransactions();
 
       if (!mounted) return;
 
@@ -59,20 +54,14 @@ class _ExpensePageState extends State<ExpensePage> {
   double get income {
     return items
         .where((item) => item.type == 'income')
-        .fold<double>(
-      0,
-          (sum, item) => sum + item.amount,
-    );
+        .fold<double>(0, (sum, item) => sum + item.amount);
   }
 
   // TỔNG CHI TIÊU
   double get expense {
     return items
         .where((item) => item.type == 'expense')
-        .fold<double>(
-      0,
-          (sum, item) => sum + item.amount,
-    );
+        .fold<double>(0, (sum, item) => sum + item.amount);
   }
 
   // ĐỊNH DẠNG NGÀY
@@ -91,12 +80,9 @@ class _ExpensePageState extends State<ExpensePage> {
 
   // ICON THEO DANH MỤC
   IconData categoryIcon(TransactionModel item) {
-    final text =
-    '${item.category} ${item.title}'.toLowerCase();
+    final text = '${item.category} ${item.title}'.toLowerCase();
 
-    if (text.contains('ăn') ||
-        text.contains('uống') ||
-        text.contains('cơm')) {
+    if (text.contains('ăn') || text.contains('uống') || text.contains('cơm')) {
       return Icons.restaurant;
     }
 
@@ -106,18 +92,15 @@ class _ExpensePageState extends State<ExpensePage> {
       return Icons.directions_car;
     }
 
-    if (text.contains('lương') ||
-        text.contains('thu nhập')) {
+    if (text.contains('lương') || text.contains('thu nhập')) {
       return Icons.attach_money;
     }
 
-    if (text.contains('mua') ||
-        text.contains('sắm')) {
+    if (text.contains('mua') || text.contains('sắm')) {
       return Icons.shopping_cart;
     }
 
-    if (text.contains('học') ||
-        text.contains('giáo dục')) {
+    if (text.contains('học') || text.contains('giáo dục')) {
       return Icons.school;
     }
 
@@ -134,12 +117,9 @@ class _ExpensePageState extends State<ExpensePage> {
 
   // MÀU SẮC THEO DANH MỤC
   Color categoryColor(TransactionModel item) {
-    final text =
-    '${item.category} ${item.title}'.toLowerCase();
+    final text = '${item.category} ${item.title}'.toLowerCase();
 
-    if (text.contains('ăn') ||
-        text.contains('uống') ||
-        text.contains('cơm')) {
+    if (text.contains('ăn') || text.contains('uống') || text.contains('cơm')) {
       return const Color(0xFFFF6B24);
     }
 
@@ -149,13 +129,11 @@ class _ExpensePageState extends State<ExpensePage> {
       return const Color(0xFF2196F3);
     }
 
-    if (text.contains('mua') ||
-        text.contains('sắm')) {
+    if (text.contains('mua') || text.contains('sắm')) {
       return const Color(0xFFA83CF5);
     }
 
-    if (text.contains('học') ||
-        text.contains('giáo dục')) {
+    if (text.contains('học') || text.contains('giáo dục')) {
       return const Color(0xFF009C96);
     }
 
@@ -178,9 +156,7 @@ class _ExpensePageState extends State<ExpensePage> {
   }
 
   // SỬA HOẶC XÓA GIAO DỊCH
-  Future<void> transactionActions(
-      TransactionModel item,
-      ) async {
+  Future<void> transactionActions(TransactionModel item) async {
     final action = await showModalBottomSheet<String>(
       context: context,
       builder: (sheetContext) {
@@ -191,27 +167,19 @@ class _ExpensePageState extends State<ExpensePage> {
               ListTile(
                 title: Text(
                   item.title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 subtitle: Text(item.category),
               ),
               ListTile(
-                leading: const Icon(
-                  Icons.edit,
-                  color: mainBlue,
-                ),
+                leading: const Icon(Icons.edit, color: mainBlue),
                 title: const Text('Sửa giao dịch'),
                 onTap: () {
                   Navigator.pop(sheetContext, 'edit');
                 },
               ),
               ListTile(
-                leading: const Icon(
-                  Icons.delete_outline,
-                  color: Colors.red,
-                ),
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
                 title: const Text('Xóa giao dịch'),
                 onTap: () {
                   Navigator.pop(sheetContext, 'delete');
@@ -226,10 +194,7 @@ class _ExpensePageState extends State<ExpensePage> {
     if (!mounted) return;
 
     if (action == 'edit') {
-      final updated = await editTransaction(
-        context,
-        existing: item,
-      );
+      final updated = await editTransaction(context, existing: item);
 
       if (!mounted) return;
 
@@ -239,10 +204,9 @@ class _ExpensePageState extends State<ExpensePage> {
     }
 
     if (action == 'delete') {
-      final deleted = await removeTransaction(
-        context,
-        item,
-      );
+      if (!mounted) return;
+
+      final deleted = await removeTransaction(context, item);
 
       if (!mounted) return;
 
@@ -256,10 +220,7 @@ class _ExpensePageState extends State<ExpensePage> {
   Widget buildHeader() {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 7,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       child: Row(
         children: [
           IconButton(
@@ -271,10 +232,7 @@ class _ExpensePageState extends State<ExpensePage> {
                 builder: (sheetContext) {
                   return SafeArea(
                     child: ListTile(
-                      leading: const Icon(
-                        Icons.receipt_long,
-                        color: mainBlue,
-                      ),
+                      leading: const Icon(Icons.receipt_long, color: mainBlue),
                       title: const Text('Tất cả giao dịch'),
                       onTap: () {
                         Navigator.pop(sheetContext);
@@ -298,10 +256,7 @@ class _ExpensePageState extends State<ExpensePage> {
             ),
           ),
           IconButton(
-            icon: const Icon(
-              Icons.notifications_none,
-              size: 26,
-            ),
+            icon: const Icon(Icons.notifications_none, size: 26),
             onPressed: () {
               snack(context, 'Chưa có thông báo mới');
             },
@@ -317,17 +272,12 @@ class _ExpensePageState extends State<ExpensePage> {
 
     return Container(
       height: 146,
-      margin: const EdgeInsets.fromLTRB(
-        14, 14, 14, 11,
-      ),
+      margin: const EdgeInsets.fromLTRB(14, 14, 14, 11),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF418AFF),
-            Color(0xFF0753D8),
-          ],
+          colors: [Color(0xFF418AFF), Color(0xFF0753D8)],
         ),
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
@@ -397,9 +347,7 @@ class _ExpensePageState extends State<ExpensePage> {
           ),
 
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-              20, 25, 110, 22,
-            ),
+            padding: const EdgeInsets.fromLTRB(20, 25, 110, 22),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -468,7 +416,7 @@ class _ExpensePageState extends State<ExpensePage> {
                 const SizedBox(width: 5),
                 ...List.generate(
                   3,
-                      (index) => Container(
+                  (index) => Container(
                     width: 5,
                     height: 5,
                     margin: const EdgeInsets.only(right: 4),
@@ -507,11 +455,7 @@ class _ExpensePageState extends State<ExpensePage> {
             CircleAvatar(
               radius: 17,
               backgroundColor: color,
-              child: Icon(
-                icon,
-                color: Colors.white,
-                size: 21,
-              ),
+              child: Icon(icon, color: Colors.white, size: 21),
             ),
             const SizedBox(width: 7),
             Expanded(
@@ -551,9 +495,7 @@ class _ExpensePageState extends State<ExpensePage> {
 
   Widget buildSummary() {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 14,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Row(
         children: [
           summaryCard(
@@ -579,9 +521,7 @@ class _ExpensePageState extends State<ExpensePage> {
   // TIÊU ĐỀ GIAO DỊCH GẦN ĐÂY
   Widget buildRecentHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        14, 19, 14, 7,
-      ),
+      padding: const EdgeInsets.fromLTRB(14, 19, 14, 7),
       child: Row(
         children: [
           const Expanded(
@@ -598,16 +538,11 @@ class _ExpensePageState extends State<ExpensePage> {
             onPressed: widget.onViewAll,
             style: TextButton.styleFrom(
               foregroundColor: mainBlue,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 4,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
             ),
             child: const Text(
               'Xem tất cả',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -626,20 +561,13 @@ class _ExpensePageState extends State<ExpensePage> {
     return InkWell(
       onTap: () => transactionActions(item),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 11,
-          vertical: 11,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 11),
         child: Row(
           children: [
             CircleAvatar(
               radius: 19,
               backgroundColor: color,
-              child: Icon(
-                categoryIcon(item),
-                color: Colors.white,
-                size: 21,
-              ),
+              child: Icon(categoryIcon(item), color: Colors.white, size: 21),
             ),
             const SizedBox(width: 11),
             Expanded(
@@ -702,9 +630,7 @@ class _ExpensePageState extends State<ExpensePage> {
     if (loading) {
       return const Padding(
         padding: EdgeInsets.all(30),
-        child: Center(
-          child: CircularProgressIndicator(),
-        ),
+        child: Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -712,30 +638,22 @@ class _ExpensePageState extends State<ExpensePage> {
 
     if (recent.isEmpty) {
       return Container(
-        margin: const EdgeInsets.symmetric(
-          horizontal: 14,
-        ),
+        margin: const EdgeInsets.symmetric(horizontal: 14),
         padding: const EdgeInsets.all(30),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(13),
         ),
-        child: const Center(
-          child: Text('Chưa có giao dịch nào'),
-        ),
+        child: const Center(child: Text('Chưa có giao dịch nào')),
       );
     }
 
     return Container(
-      margin: const EdgeInsets.symmetric(
-        horizontal: 14,
-      ),
+      margin: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(13),
-        border: Border.all(
-          color: const Color(0xFFEAEFF6),
-        ),
+        border: Border.all(color: const Color(0xFFEAEFF6)),
       ),
       child: Column(
         children: [
@@ -766,9 +684,7 @@ class _ExpensePageState extends State<ExpensePage> {
               child: RefreshIndicator(
                 onRefresh: refresh,
                 child: ListView(
-                  padding: const EdgeInsets.only(
-                    bottom: 95,
-                  ),
+                  padding: const EdgeInsets.only(bottom: 95),
                   children: [
                     buildBalanceCard(),
                     buildSummary(),
@@ -787,10 +703,7 @@ class _ExpensePageState extends State<ExpensePage> {
         foregroundColor: Colors.white,
         elevation: 5,
         shape: const CircleBorder(),
-        child: const Icon(
-          Icons.add,
-          size: 30,
-        ),
+        child: const Icon(Icons.add, size: 30),
       ),
     );
   }
